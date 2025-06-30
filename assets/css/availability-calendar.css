@@ -1,0 +1,57 @@
+.guesty-availability-calendar {
+    max-width: 100%;
+    margin: 20px 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+}
+
+.calendar-header, .calendar-days {
+    display: contents;
+}
+
+.calendar-header > div {
+    font-weight: bold;
+    text-align: center;
+    padding: 8px;
+    background: #f5f5f5;
+}
+
+.day {
+    border: 1px solid #e0e0e0;
+    min-height: 40px;
+    padding: 4px;
+    position: relative;
+    text-align: center;
+}
+
+.day.available {
+    background-color: #e8f5e9;
+    cursor: pointer;
+}
+
+.day.booked {
+    background-color: #ffebee;
+    opacity: 0.6;
+}
+
+.day-price {
+    display: block;
+    font-size: 0.8em;
+    color: #2e7d32;
+}
+
+.calendar-navigation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 15px 0;
+}
+
+.empty-day {
+    background: transparent;
+}
