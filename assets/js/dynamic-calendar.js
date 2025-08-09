@@ -65,7 +65,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return {
                 title: entry.status,
                 start: entry.date,
-                className: entry.status
+                className: entry.status,
+                extendedProps: {
+                    status: entry.status
+                }
             };
         });
 
@@ -81,16 +84,30 @@ document.addEventListener('DOMContentLoaded', () => {
         calendarInstance = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
             events: events,
-            eventClick: function (info) {
+            dateClick: function (info) {
                 /*
-                * Handles event clicks, logging details and optionally navigating to a URL.
+                * Handles date clicks, displaying a modal with the selected date.
                 */
-                info.jsEvent.preventDefault();
-                console.log('Event clicked:', info.event.title);
-                console.log('Event start:', info.event.start);
+                const eventsOnDate = calendarInstance.getEvents().filter(event => {
+                    const eventDate = event.start.toISOString().split('T')[0];
+                    return eventDate === info.dateStr;
+                });
 
-                if (info.event.url) {
-                    window.open(info.event.url, '_blank');
+                if (eventsOnDate.length > 0 && eventsOnDate[0].extendedProps.status === 'available') {
+                    const modalContent = handleDateSelection(info.dateStr);
+                    jQuery(modalContent).modal();
+                }
+            },
+            dayCellDidMount: function(info) {
+                const eventsOnDate = calendarInstance.getEvents().filter(event => {
+                    const eventDate = event.start.toISOString().split('T')[0];
+                    return eventDate === info.dateStr;
+                });
+
+                if (eventsOnDate.length > 0 && eventsOnDate[0].extendedProps.status === 'available') {
+                    info.el.classList.add('clickable');
+                }else{
+                    info.el.classList.add('disabled');
                 }
             }
         });
@@ -147,6 +164,16 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             console.warn('Toolbar chunk not found. Navigation buttons will not be functional.');
         }
+
+        if (calendarInstance) {
+            calendarInstance.on('eventClick', function (info) {
+                const event = info.event;
+                if (event.extendedProps.status === 'available') {
+                    const modalContent = handleDateSelection(event.start.toISOString().split('T')[0]);
+                    jQuery(modalContent).modal();
+                }
+            });
+        }
     }
 
     function updateCalendarDates(direction) {
@@ -174,11 +201,164 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 0);
     }
 
+    let selectedStartDate = null;
+    let selectedEndDate = null;
+
     function handleDateSelection(date) {
         /*
-        * Handles date selection events, logging the selected date.
+        * Handles date selection events, allowing the user to select a check-in date and pick a check-out date within the modal.
         */
-        console.log(`Date selected: ${date}`);
+        selectedStartDate = date;
+        const postTitle = guestyApi.post_title || 'the property';
+        // Return modal content for confirmation
+        return `
+            <div class="modal-content">
+                <h2>Reserve ${postTitle}</h2>
+                <p></p>
+                <div class="section-input">
+                    <p id="check-in-date">Check-in: <b>${selectedStartDate}</b></p>
+                    <p id="check-out-date">Check-out: <b></b></p>
+                    <label for="checkout-date" class="property-label">Please select your check-out date:</label>
+                    <input type="date" placeholder="Select a check-out date" id="checkout-date" min="${selectedStartDate}" />
+                    <p id="error-message" style="color: red; display: none;">Please select a valid check-out date.</p>
+                    
+                </div>
+                <div class="section-input">
+                    <label for="guest-count" class="property-label">Number of Guests:</label>
+                    <input type="number" id="guest-count" min="1" value="1" />
+                </div>
+                <div class="section-input">
+                    <label for="contact-info" class="property-label">Your Email:</label>
+                    <input type="email" id="contact-info" placeholder="Enter your email" />
+                 </div>
+                <div class="section-textarea">
+                    <label for="reservation-notes" class="property-label">Reservation Notes:</label>
+                    <textarea id="reservation-notes" placeholder="Add any special requests or notes"></textarea>
+                </div>
+                <div class="section checkbox">
+                    <input type="checkbox" id="privacy-policy" />
+                    <label for="privacy-policy" class="property-label">I agree to the Privacy Policy</label>
+                </div>
+                <div class="section checkbox">
+                    <input type="checkbox" id="terms-conditions" />
+                    <label for="terms-conditions" class="property-label">I agree to the Terms and Conditions</label>
+                </div>
+                <div class="section checkbox">
+                    <input type="checkbox" id="marketing-consent" />
+                    <label for="marketing-consent" class="property-label">I agree to receive marketing communications</label>
+                </div>
+                <p></p>
+                <button id="reserve" disabled>Book Property</button>
+            </div>
+        `;
+    }
+
+    document.addEventListener('click', function (event) {
+        if (event.target && event.target.id === 'checkout-date') {
+            const checkoutInput = event.target;
+            checkoutInput.addEventListener('change', function () {
+                document.querySelector('#check-out-date b').innerHTML = checkoutInput.value;
+                const selectedEndDate = checkoutInput.value;
+                if (new Date(selectedEndDate) > new Date(selectedStartDate)) {
+                    document.getElementById('reserve').disabled = false;
+                    document.getElementById('error-message').style.display = 'none';
+                } else {
+                    document.getElementById('reserve').disabled = true;
+                    document.getElementById('error-message').style.display = 'block';
+                }
+            });
+        }
+
+        if (event.target && event.target.id === 'reserve') {
+            const guestCount = document.getElementById('guest-count').value;
+            const reservationNotes = document.getElementById('reservation-notes').value;
+            const contactInfo = document.getElementById('contact-info').value;
+            const privacyPolicy = document.getElementById('privacy-policy').checked;
+            const termsConditions = document.getElementById('terms-conditions').checked;
+            const marketingConsent = document.getElementById('marketing-consent').checked;
+
+            const reservationData = {
+                checkIn: new Date(selectedStartDate).toISOString().split('T')[0],
+                checkOut: new Date(document.querySelector('#check-out-date b').innerHTML).toISOString().split('T')[0],
+                guests: parseInt(guestCount, 10),
+                notes: reservationNotes,
+                contactInfo: contactInfo,
+                privacyPolicy: privacyPolicy,
+                termsConditions: termsConditions,
+                marketingConsent: marketingConsent
+            };
+
+            // Make AJAX call to create reservation
+            jQuery.post(guestyApi.ajax_url, {
+                action: 'guesty_create_reservation',
+                reservation_data: reservationData,
+                post_id: guestyApi.post_id,
+                _ajax_nonce: guestyApi.nonce
+            }, function (response) {
+                if (response.success) {
+                    // Send email notification
+                    jQuery.post(guestyApi.ajax_url, {
+                        action: 'guesty_send_reservation_email',
+                        email_data: {
+                            postTitle: guestyApi.post_title,
+                            ...reservationData,
+                            subject: 'Reservation Confirmation',
+                        },
+                        _ajax_nonce: guestyApi.nonce
+                    }, function (emailResponse) {
+                        if (emailResponse.success) {
+
+                            alert('Reservation successful and email sent!');
+                        } else {
+                            alert('Reservation successful but email could not be sent.');
+                        }
+                        // Remove the modal from the DOM
+                        jQuery.modal.close();
+                    });
+                } else {
+                    console.error('Error creating reservation:', response);
+                }
+            });
+        }
+
+        if (event.target && event.target.id === 'book') {
+            selectedStartDate = null;
+            selectedEndDate = null;
+            document.querySelector('.jquery-modal').remove();
+        }
+    });
+
+    document.addEventListener('input', function (event) {
+        const checkoutDate = document.getElementById('checkout-date').value;
+        const contactInfo = document.getElementById('contact-info').value;
+        const privacyPolicy = document.getElementById('privacy-policy').checked;
+        const termsConditions = document.getElementById('terms-conditions').checked;
+
+        const reserveButton = document.getElementById('reserve');
+
+        if (checkoutDate && contactInfo && privacyPolicy && termsConditions) {
+            reserveButton.disabled = false;
+        } else {
+            reserveButton.disabled = true;
+        }
+    });
+
+    function makeAjaxCall(startDate, endDate) {
+        /*
+        * Makes an AJAX call to handle the selected date range.
+        */
+        jQuery.post(guestyApi.ajax_url, {
+            action: 'handle_date_range_selection',
+            start_date: startDate,
+            end_date: endDate,
+            _ajax_nonce: guestyApi.nonce
+        }, function (response) {
+            if (response.success) {
+                console.log('Date range selection processed successfully:', response);
+            } else {
+                console.error('Error processing date range selection:', response);
+            }
+        });
     }
 
     const calendarElement = document.querySelector('#property-calendar');
@@ -187,6 +367,7 @@ document.addEventListener('DOMContentLoaded', () => {
         * Adds an event listener for date selection on the calendar element.
         */
         calendarElement.addEventListener('click', (event) => {
+            console.log('oooooooooooooooooooooooooooooooooooooooooooooooo')
             if (event.target.classList.contains('fc-day')) {
                 const selectedDate = event.target.getAttribute('data-date');
                 handleDateSelection(selectedDate);

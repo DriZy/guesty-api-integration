@@ -31,6 +31,7 @@ class Guesty_Admin {
             'caching' => __( 'Caching', 'guesty-api-integration' ),
             'webhooks' => __( 'Webhooks', 'guesty-api-integration' ),
             'shortcodes' => __( 'Shortcodes', 'guesty-api-integration' ),
+            'smtp' => __( 'SMTP Settings', 'guesty-api-integration' ),
         ];
         foreach ( $tabs as $tab => $label ) {
             $class = ( $active_tab === $tab ) ? ' nav-tab-active' : '';
@@ -39,6 +40,12 @@ class Guesty_Admin {
         echo '</nav>';
         if ( $active_tab === 'shortcodes' ) {
             self::shortcodes_tab();
+        } elseif ( $active_tab === 'smtp' ) {
+            echo '<form method="post" action="options.php">';
+            settings_fields( 'guesty_api_smtp' );
+            do_settings_sections( 'guesty_api_smtp' );
+            submit_button();
+            echo '</form>';
         } else {
             echo '<form method="post" action="options.php">';
             settings_fields( 'guesty_api_' . $active_tab );
@@ -89,5 +96,23 @@ add_action( 'admin_init', function() {
     add_settings_field( 'guesty_api_webhook_url', __( 'Webhook URL', 'guesty-api-integration' ), function() {
         echo '<input type="url" name="guesty_api_webhook_url" value="' . esc_attr( get_option( 'guesty_api_webhook_url' ) ) . '" class="regular-text">';
     }, 'guesty_api_webhooks', 'guesty_api_webhooks_section' );
+    // SMTP Settings
+    register_setting( 'guesty_api_smtp', 'guesty_api_smtp_host' );
+    register_setting( 'guesty_api_smtp', 'guesty_api_smtp_port' );
+    register_setting( 'guesty_api_smtp', 'guesty_api_smtp_username' );
+    register_setting( 'guesty_api_smtp', 'guesty_api_smtp_password' );
+    add_settings_section( 'guesty_api_smtp_section', '', null, 'guesty_api_smtp' );
+    add_settings_field( 'guesty_api_smtp_host', __( 'SMTP Host', 'guesty-api-integration' ), function() {
+        echo '<input type="text" name="guesty_api_smtp_host" value="' . esc_attr( get_option( 'guesty_api_smtp_host' ) ) . '" class="regular-text">';
+    }, 'guesty_api_smtp', 'guesty_api_smtp_section' );
+    add_settings_field( 'guesty_api_smtp_port', __( 'SMTP Port', 'guesty-api-integration' ), function() {
+        echo '<input type="number" name="guesty_api_smtp_port" value="' . esc_attr( get_option( 'guesty_api_smtp_port' ) ) . '" class="small-text">';
+    }, 'guesty_api_smtp', 'guesty_api_smtp_section' );
+    add_settings_field( 'guesty_api_smtp_username', __( 'SMTP Username', 'guesty-api-integration' ), function() {
+        echo '<input type="text" name="guesty_api_smtp_username" value="' . esc_attr( get_option( 'guesty_api_smtp_username' ) ) . '" class="regular-text">';
+    }, 'guesty_api_smtp', 'guesty_api_smtp_section' );
+    add_settings_field( 'guesty_api_smtp_password', __( 'SMTP Password', 'guesty-api-integration' ), function() {
+        echo '<input type="password" name="guesty_api_smtp_password" value="' . esc_attr( get_option( 'guesty_api_smtp_password' ) ) . '" class="regular-text">';
+    }, 'guesty_api_smtp', 'guesty_api_smtp_section' );
 });
 

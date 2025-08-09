@@ -6,6 +6,7 @@ class Guesty_API
     private $client_id;
     private $client_secret;
     private $token;
+
     public function __construct()
     {
         $this->client_id = get_option('guesty_api_client_id');
@@ -15,6 +16,7 @@ class Guesty_API
             $this->authenticate();
         }
     }
+
     public function log_plugin_event($message)
     {
         if (!function_exists('guesty_api_log_event')) {
@@ -95,6 +97,7 @@ class Guesty_API
             ], 400);
         }
     }
+
     private function sanitize_data($data)
     {
         if (is_array($data)) {
@@ -118,6 +121,8 @@ class Guesty_API
 
         $response = wp_remote_request($url, array_merge($request_args, ['method' => $method]));
 
+        $this->log_plugin_event(sprintf('Request to %s with method %s and args %s', print_r($response, true), $method, print_r($args, true)));
+
         if (is_wp_error($response)) {
             return ['error' => $response->get_error_message()];
         }
@@ -131,18 +136,22 @@ class Guesty_API
 
         return $this->sanitize_data($body);
     }
+
     public function get_properties($args = [])
     {
         return $this->request('api/listings', $args);
     }
+
     public function get_property($id)
     {
         return $this->request('api/listings/' . $id);
     }
+
     public function create_booking($data)
     {
         return $this->request('bookings', $data, 'POST');
     }
+
     public function insert_listings_into_property_post_type($listings)
     {
         if (empty($listings) || !is_array($listings)) {
@@ -155,14 +164,14 @@ class Guesty_API
         foreach ($listings as $listing) {
             // Prepare post data
             $post_data = [
-                'post_title'    => $listing['title'] ?? 'Untitled Property',
-                'property_title'    => $listing['title'] ?? 'Untitled Property',
-                'guesty_id'    => $listing['_id'],
-                '_description'  => $listing['publicDescription']['space'] ?? '',
-                'bedrooms'  => $listing['bedrooms'] ?? 1,
-                'bathrooms'  => $listing['bathrooms'] ?? 1,
-                'post_status'   => 'publish',
-                'post_type'     => 'property',
+                'post_title' => $listing['title'] ?? 'Untitled Property',
+                'property_title' => $listing['title'] ?? 'Untitled Property',
+                'guesty_id' => $listing['_id'],
+                '_description' => $listing['publicDescription']['space'] ?? '',
+                'bedrooms' => $listing['bedrooms'] ?? 1,
+                'bathrooms' => $listing['bathrooms'] ?? 1,
+                'post_status' => 'publish',
+                'post_type' => 'property',
             ];
 
             // Insert the post
@@ -190,6 +199,7 @@ class Guesty_API
 
         $this->log_plugin_event(sprintf('Completed inserting %d listings into the property post type.', count($listings)));
     }
+
     public function upload_image_and_set_as_thumbnail($image_url, $image_caption, $post_id)
     {
         require_once ABSPATH . 'wp-admin/includes/file.php';
@@ -207,7 +217,7 @@ class Guesty_API
 
         // Step 2: Prepare the file array
         $file_array = array(
-            'name'     => basename(parse_url($image_url, PHP_URL_PATH)),
+            'name' => basename(parse_url($image_url, PHP_URL_PATH)),
             'tmp_name' => $tmp,
         );
 
@@ -223,7 +233,7 @@ class Guesty_API
 
         // Step 4: Update attachment with caption and alt text
         wp_update_post(array(
-            'ID'           => $attachment_id,
+            'ID' => $attachment_id,
             'post_excerpt' => $image_caption, // Caption
             'post_content' => $image_caption, // Description
         ));
@@ -243,37 +253,19 @@ class Guesty_API
             'from' => $start_date,
             'to' => $end_date
         ];
+        return $this->request($endpoint, $args);
+    }
 
-        $max_retries = 3; // Maximum number of retries
-        $retry_delay = 2; // Initial delay in seconds
-
-        for ($attempt = 1; $attempt <= $max_retries; $attempt++) {
-            $response = $this->request($endpoint, $args);
-
-            if (isset($response['error']['code']) && $response['error']['code'] === 'TOO_MANY_REQUESTS') {
-                error_log("Rate limit hit. Attempt {$attempt} of {$max_retries}.");
-
-                if ($attempt < $max_retries) {
-                    sleep($retry_delay); // Wait before retrying
-                    $retry_delay *= 2; // Exponential backoff
-                    continue;
-                } else {
-                    error_log('Max retries reached. Unable to fetch availability.');
-                    return [
-                        'success' => false,
-                        'message' => 'Rate limit exceeded. Please try again later.'
-                    ];
-                }
-            }
-
-            // If no rate limit error, return the response
-            return $response;
-        }
-
-        // Fallback in case of unexpected failure
-        return [
-            'success' => false,
-            'message' => 'Failed to fetch availability due to an unknown error.'
+    public function create_reservation($property_id, $reservation_data)
+    {
+        $endpoint = 'api/reservations/quotes';
+        $args = [
+            'listingId' => $property_id,
+            'checkInDateLocalized' => $reservation_data['checkIn'],
+            'checkOutDateLocalized' => $reservation_data['checkOut'],
+            'guestsCount' => $reservation_data['guests'],
         ];
+
+        return $this->request($endpoint, $args, 'POST');
     }
 }

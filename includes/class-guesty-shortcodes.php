@@ -85,4 +85,43 @@ class Guesty_Shortcodes {
 
         return '<pre>' . esc_html(json_encode($availability, JSON_PRETTY_PRINT)) . '</pre>';
     }
+
+    public static function booking_calendar_shortcode($atts) {
+        $atts = shortcode_atts([
+            'property_id' => ''
+        ], $atts, 'guesty_booking_calendar');
+
+        if (empty($atts['property_id'])) {
+            if (is_singular('property')) {
+                global $post;
+                $atts['property_id'] = $post->ID;
+            } else {
+                return '<div class="guesty-error">' . esc_html__('Property ID is required', 'guesty-api') . '</div>';
+            }
+        }
+
+        // You can retrieve the Guesty listing ID from the property's post meta.
+        $listing_id = get_post_meta($atts['property_id'], 'guesty_id', true);
+
+        if (empty($listing_id)) {
+            return '<div class="guesty-error">' . esc_html__('Could not find Guesty listing ID for the given property.', 'guesty-api') . '</div>';
+        }
+
+        ob_start();
+        ?>
+        <div class="property-calendar"></div>
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                window.guestyApi = {
+                    ajax_url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                    nonce: '<?php echo wp_create_nonce('guesty_api_nonce'); ?>',
+                    post_id: '<?php echo $atts['property_id']; ?>'
+                    post_title: '<?php echo $atts['property_title']; ?>'
+                };
+                // The dynamic-calendar.js script will handle the rest.
+            });
+        </script>
+        <?php
+        return ob_get_clean();
+    }
 }

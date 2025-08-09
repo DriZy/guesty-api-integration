@@ -1,0 +1,40 @@
+/* Add your custom calendar styles here. */
+label, #check-in-date, #check-out-date{
+    color: black;
+}
+input, select, textarea {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.section.checkbox input{
+    width: auto !important;
+}
+
+.day.available {
+    background-color: #d0e8d0 !important;
+}
+.clickable {
+    cursor: pointer;
+}
+
+/*.fc .fc-daygrid-day-frame {*/
+/*    height: 30px; !* Adjust as needed *!*/
+/*    width: 30px; !* Adjust as needed *!*/
+/*}*/
+/*fc .fc-day.fc-day-past.fc-daygrid-day{*/
+/*    background-color: #f0f0f0 !important; !* Past days *!*/
+/*    width: 30px; !* Adjust width for past days *!*/
+/*    height: 30px; !* Adjust height for past days *!*/
+/*}*/
+/*.fc tbody tr td{*/
+/*    width: 30px; !* Set width for table cells *!*/
+/*    height: 30px; !* Set height for table cells *!*/
+/*}*/
+
+@media (max-width: 768px) {
+    .fc-daygrid-day {
+        min-height: 80px; /* Adjust for smaller screens */
+        width: auto;
+    }
+}
